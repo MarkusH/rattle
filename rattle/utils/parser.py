@@ -1,6 +1,7 @@
 import ast
 
 from rattle import PY3
+from rattle.exceptions import DuplicateBlockError
 
 
 class ParserState(object):
@@ -9,16 +10,27 @@ class ParserState(object):
     """
 
     def __init__(self):
-        self.blocks = []
+        self.functions = {}
+        self.klass = None
+        self.root_func = None
 
-    def append_to_block(self, value):
+    def add_function(self, name, func):
+        if name in self.functions:
+            raise DuplicateBlockError(name)
+        self.functions[name] = func
+
+    def append_to_block(self, value, name='root'):
         """
         Appends the given value to the body of the currently active block
         function.
 
         :param value: A :class:`ast.stmt` node.
         """
-        self.blocks[-1].body.append(value)
+        self.functions[name].body.append(value)
+
+    def finalize(self):
+        # Add all functions to the class body
+        self.klass.body = list(self.functions.values())
 
 
 def production(generator, *rules):
@@ -68,7 +80,7 @@ def build_call(func, args=[], kwargs=[]):
     )
 
 
-def build_class():
+def build_class(state):
     """
     Constructs a :class:`ast.ClassDef` node that wraps the entire template
     file. The class will have an entry function ``root`` with:
@@ -82,6 +94,23 @@ def build_class():
 
     :returns: a 2-tuple with the class and the entry function
     """
+    root_func = build_function('root')
+    klass = ast.ClassDef(
+        name='Template',
+        bases=[ast.Name(id='object', ctx=ast.Load())],
+        keywords=[],
+        starargs=None,
+        kwargs=None,
+        body=[root_func],
+        decorator_list=[]
+    )
+    state.klass = klass
+    state.root_func = root_func
+    state.add_function('root', root_func)
+    return klass, root_func
+
+
+def build_function(name, body=[]):
     args = {}
     if PY3:
         args.update({
@@ -97,31 +126,23 @@ def build_class():
             ast.Name(id='self', ctx=ast.Param()),
             ast.Name(id='context', ctx=ast.Param())
         ]
-    root_func = ast.FunctionDef(
-        name='root',
+    real_body = [
+        # we add an empty string to guarantee for a string and generator on
+        # root level
+        build_yield(ast.Str(s=''))
+    ]
+    real_body.extend(body)
+    return ast.FunctionDef(
+        name=name,
         args=ast.arguments(
             vararg=None,
             kwarg=None,
             defaults=[],
             **args
         ),
-        body=[
-            # we add an empty string to guarantee for a string and generator on
-            # root level
-            build_yield(ast.Str(s=''))
-        ],
+        body=real_body,
         decorator_list=[]
     )
-    klass = ast.ClassDef(
-        name='Template',
-        bases=[ast.Name(id='object', ctx=ast.Load())],
-        keywords=[],
-        starargs=None,
-        kwargs=None,
-        body=[root_func],
-        decorator_list=[]
-    )
-    return klass, root_func
 
 
 def build_str_join(l):
@@ -159,6 +180,30 @@ def build_yield(value):
     :rtype: :class:`ast.Expr`
     """
     return ast.Expr(value=ast.Yield(value=value))
+
+
+def build_yield_from(name):
+    to_call = ast.Attribute(
+        value=ast.Name(id='self', ctx=ast.Load()),
+        attr=name,
+        ctx=ast.Load()
+    )
+    call = build_call(
+        func=to_call,
+        args=[ast.Name(id='context', ctx=ast.Load())]
+    )
+    if hasattr(ast, 'YieldFrom'):  # TODO: Switch to "if PY3" at some point
+        # YieldFrom is a new feature in Python 3.3
+        return ast.Expr(value=ast.YieldFrom(value=call))
+    else:
+        return ast.For(
+            target=ast.Name(id='_', ctx=ast.Store()),
+            iter=call,
+            body=[
+                build_yield(ast.Name(id='_', ctx=ast.Load()))
+            ],
+            orelse=[]
+        )
 
 
 def get_filter_func(name):

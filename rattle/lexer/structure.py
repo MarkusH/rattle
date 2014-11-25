@@ -30,3 +30,6 @@ slg.add('ELSE', r'\s*else\s+')
 slg.add('FOR', r'\s*for\s+')
 slg.add('ENDFOR', r'\s*endfor\s+')
 slg.add('EMPTY', r'\s*empty\s+')
+
+slg.add('BLOCK', r'\s*block\s+')
+slg.add('ENDBLOCK', r'\s*endblock\s+')

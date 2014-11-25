@@ -133,6 +133,7 @@ class Template(object):
         tokens = lexers.sl.lex(self.source)
         state = ParserState()
         klass = parsers.sp.parse(tokens, state)
+        state.finalize()
         body = [
             klass,
             ast.Global(names=['rendered']),

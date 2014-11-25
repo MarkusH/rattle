@@ -2,8 +2,9 @@ import ast
 
 from . import parsers
 from ..lexer import lexers
-from ..utils.parser import (build_call, build_class, build_yield, production,
-    split_tag_args_string, update_source_pos)
+from ..utils.parser import (build_call, build_class, build_function,
+    build_yield, build_yield_from, production, split_tag_args_string,
+    update_source_pos)
 
 
 spg = parsers.spg
@@ -28,6 +29,7 @@ The overall rules are::
 
     tag      :  if
              |  for
+             |  block
 
     if       :  TS IF CONTENT TE inner TS ENDIF TE
              |  TS IF CONTENT TE inner TS ELSE TE inner TS ENDIF TE
@@ -35,6 +37,8 @@ The overall rules are::
     for      :  TS FOR CONTENT TE inner TS ENDFOR TE
              |  TS FOR CONTENT TE inner TS ELSE TE inner TS ENDFOR TE
              |  TS FOR CONTENT TE inner TS EMPTY TE inner TS ENDFOR TE
+
+    block    :  TS BLOCK CONTENT TE inner TS ENDBLOCK TE
 
     comment  :  CS CONTENT CE
 
@@ -54,8 +58,7 @@ spg.precedence = []
 
 @production(spg, 'doc : CONTENT')
 def doc__CONTENT(state, p):
-    klass, root_func = build_class()
-    state.blocks.append(root_func)
+    klass, root_func = build_class(state)
     content = p[0]
     content = update_source_pos(ast.Str(s=content.getstr()), content)
     state.append_to_block(build_yield(content))
@@ -67,8 +70,7 @@ def doc__CONTENT(state, p):
             'doc : tag',
             'doc : comment')
 def doc__parsed(state, p):
-    klass, root_func = build_class()
-    state.blocks.append(root_func)
+    klass, root_func = build_class(state)
     state.append_to_block(p[0])
     return klass
 
@@ -109,7 +111,8 @@ def var__varstart_CONTENT_varend(state, p):
 
 @production(spg,
             'tag : if',
-            'tag : for')
+            'tag : for',
+            'tag : block')
 def tag(state, p):
     return p[0]
 
@@ -176,6 +179,15 @@ def for__else_impl(state, p):
     ), ts)
 
 
+@production(spg, 'block : TS BLOCK CONTENT TE inner TS ENDBLOCK TE')
+def block__impl(state, p):
+    ts, _, args, _, body, _, _, _ = p
+    name, = split_tag_args_string(args.getstr())  # single element
+    func = build_function(name, body)
+    state.add_function(name, func)
+    return update_source_pos(build_yield_from(name), ts)
+
+
 @production(spg, 'comment : CS CONTENT CE')
 def comment(state, p):
     return build_yield(ast.Str(s=''))
@@ -220,5 +232,5 @@ def inner__inner_comment(state, p):
 
 
 @spg.error
-def error(token):
+def error(state, token):
     raise ValueError('Unexpected token: %r' % token)

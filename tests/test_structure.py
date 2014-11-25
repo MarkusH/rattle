@@ -1,3 +1,6 @@
+from rattle import Template
+from rattle.exceptions import DuplicateBlockError
+
 from tests.utils import TemplateTestCase
 
 
@@ -230,3 +233,21 @@ class ForEmptyTest(TemplateTestCase):
         )
         for src, expect in TESTS:
             self.assertRendered(src, expect, ctx)
+
+
+class BlockTest(TemplateTestCase):
+
+    def test_block(self):
+        TESTS = (
+            ('{% block foo %}a{% endblock %}', 'a'),
+            ('ab{% block foo %}12{% block bar %}.,{% endblock %}34{% endblock %}cd', 'ab12.,34cd'),
+        )
+        for src, expect in TESTS:
+            self.assertRendered(src, expect)
+
+    def test_duplicate_block(self):
+        with self.assertRaises(DuplicateBlockError) as cm:
+            src = '{% block foo %}a{% block foo %}a{% endblock %}a{% endblock %}'
+            tmpl = Template(src)
+            rendered = tmpl.render()
+        self.assertEqual(cm.exception.name, 'foo')

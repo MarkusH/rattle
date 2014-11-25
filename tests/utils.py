@@ -1,6 +1,6 @@
 import unittest
 
-from rattle.template import Template
+from rattle import Template
 
 
 class Mock(object):
