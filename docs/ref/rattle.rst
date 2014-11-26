@@ -15,6 +15,7 @@ Submodules
 
 .. toctree::
 
+   rattle.exceptions
    rattle.template
 
 Module contents

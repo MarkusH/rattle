@@ -15,6 +15,14 @@ class ParserState(object):
         self.root_func = None
 
     def add_function(self, name, func):
+        """
+        Adds a new block to the current template.
+
+        :param str name: The block name.
+        :param ast.FunctionDef func: The :class:`ast.FunctionDef` of the block.
+        :raises: :class:`rattle.exceptions.DuplicateBlockError` if a block with
+            the given name already exists.
+        """
         if name in self.functions:
             raise DuplicateBlockError(name)
         self.functions[name] = func
@@ -29,7 +37,9 @@ class ParserState(object):
         self.functions[name].body.append(value)
 
     def finalize(self):
-        # Add all functions to the class body
+        """
+        Adds all functions to the class body.
+        """
         self.klass.body = list(self.functions.values())
 
 
