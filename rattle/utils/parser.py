@@ -294,12 +294,16 @@ def split_tag_args_string(s):
         elif c == " ":
             if not quote and not squote and parens == 0:
                 if current:
+                    if current[0] == current[-1] and current[0] in ('"', "'"):
+                        current = current[1:-1]
                     args.append(''.join(current))
                     current = []
                 continue
         current.append(c)
     if not escaped and not quote and not squote and parens == 0:
         if current:
+            if current[0] == current[-1] and current[0] in ('"', "'"):
+                current = current[1:-1]
             args.append(''.join(current))
     else:
         if quote:
