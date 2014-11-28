@@ -101,9 +101,8 @@ library = Library()
 
 class Template(object):
 
-    def __init__(self, source, origin=None):
+    def __init__(self, source):
         self.source = source
-        self.origin = origin
 
         # A list of compiled tags
         self.compiled_tags = []
@@ -132,10 +131,9 @@ class Template(object):
         """
         tokens = lexers.sl.lex(self.source)
         state = ParserState()
-        klass = parsers.sp.parse(tokens, state)
+        body = parsers.sp.parse(tokens, state)
         state.finalize()
-        body = [
-            klass,
+        body.extend([
             ast.Global(names=['rendered']),
             ast.Assign(
                 targets=[ast.Name(id='rendered', ctx=ast.Store())],
@@ -154,7 +152,7 @@ class Template(object):
                     )
                 )
             )
-        ]
+        ])
         return ast.Module(
             body=body
         )
@@ -168,9 +166,8 @@ class Template(object):
             'filters': library.filters,
             'auto_escape': auto_escape,
             'output': [],
-            'rendered': None
+            'rendered': None,
         }
-        local_ctx = {
-        }
+        local_ctx = {}
         eval(self.func, global_ctx, local_ctx)
         return global_ctx['rendered']

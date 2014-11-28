@@ -62,7 +62,7 @@ def doc__CONTENT(state, p):
     content = p[0]
     content = update_source_pos(ast.Str(s=content.getstr()), content)
     state.append_to_block(build_yield(content))
-    return klass
+    return [klass]
 
 
 @production(spg,
@@ -72,7 +72,7 @@ def doc__CONTENT(state, p):
 def doc__parsed(state, p):
     klass, root_func = build_class(state)
     state.append_to_block(p[0])
-    return klass
+    return [klass]
 
 
 @production(spg, 'doc : doc CONTENT')
