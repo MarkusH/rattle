@@ -251,3 +251,14 @@ class BlockTest(TemplateTestCase):
             tmpl = Template(src)
             rendered = tmpl.render()
         self.assertEqual(cm.exception.name, 'foo')
+
+
+class ExtendsTest(TemplateTestCase):
+
+    def test_block(self):
+        TESTS = (
+            ('{% extends "tests/extends.tpl" %}', 'Some content Super block content More content'),
+            ('{% extends "tests/extends.tpl" %}{% block superblock %}Other content{% endblock %}', 'Some content Other content More content'),
+        )
+        for src, expect in TESTS:
+            self.assertRendered(src, expect)

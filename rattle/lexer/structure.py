@@ -33,3 +33,5 @@ slg.add('EMPTY', r'\s*empty\s+')
 
 slg.add('BLOCK', r'\s*block\s+')
 slg.add('ENDBLOCK', r'\s*endblock\s+')
+
+slg.add('EXTENDS', r'\s*extends\s+')

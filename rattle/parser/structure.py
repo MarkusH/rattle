@@ -2,9 +2,9 @@ import ast
 
 from . import parsers
 from ..lexer import lexers
-from ..utils.parser import (build_call, build_class, build_function,
-    build_yield, build_yield_from, production, split_tag_args_string,
-    update_source_pos)
+from ..utils.parser import (ParserState, build_call, build_class,
+    build_function, build_yield, build_yield_from, production,
+    split_tag_args_string, update_source_pos)
 
 
 spg = parsers.spg
@@ -30,6 +30,7 @@ The overall rules are::
     tag      :  if
              |  for
              |  block
+             |  extends
 
     if       :  TS IF CONTENT TE inner TS ENDIF TE
              |  TS IF CONTENT TE inner TS ELSE TE inner TS ENDIF TE
@@ -39,6 +40,8 @@ The overall rules are::
              |  TS FOR CONTENT TE inner TS EMPTY TE inner TS ENDFOR TE
 
     block    :  TS BLOCK CONTENT TE inner TS ENDBLOCK TE
+
+    extends  :  TS EXTENDS CONTENT TE
 
     comment  :  CS CONTENT CE
 
@@ -62,7 +65,8 @@ def doc__CONTENT(state, p):
     content = p[0]
     content = update_source_pos(ast.Str(s=content.getstr()), content)
     state.append_to_block(build_yield(content))
-    return [klass]
+    state.module_body.append(klass)
+    return state.module_body
 
 
 @production(spg,
@@ -72,7 +76,8 @@ def doc__CONTENT(state, p):
 def doc__parsed(state, p):
     klass, root_func = build_class(state)
     state.append_to_block(p[0])
-    return [klass]
+    state.module_body.append(klass)
+    return state.module_body
 
 
 @production(spg, 'doc : doc CONTENT')
@@ -112,7 +117,8 @@ def var__varstart_CONTENT_varend(state, p):
 @production(spg,
             'tag : if',
             'tag : for',
-            'tag : block')
+            'tag : block',
+            'tag : extends')
 def tag(state, p):
     return p[0]
 
@@ -186,6 +192,24 @@ def block__impl(state, p):
     func = build_function(name, body)
     state.add_function(name, func)
     return update_source_pos(build_yield_from(name), ts)
+
+
+@production(spg, 'extends : TS EXTENDS CONTENT TE')
+def extends__impl(state, p):
+    ts, _, args, _ = p
+    filename, = split_tag_args_string(args.getstr())  # single element
+    content = ''
+    with open(filename, 'r') as fp:
+        content = fp.read()
+
+    super_level = state.level + 1
+    super_tokens = lexers.sl.lex(content)
+    super_state = ParserState(level=super_level)
+    super_classes = parsers.sp.parse(super_tokens, super_state)
+    super_state.finalize()
+    state.module_body = super_classes
+    state.base_class = 'Template%d' % super_level
+    return ast.Pass()
 
 
 @production(spg, 'comment : CS CONTENT CE')

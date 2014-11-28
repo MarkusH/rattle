@@ -9,9 +9,13 @@ class ParserState(object):
     Used to keep state information during template parsing, e.g. current block.
     """
 
-    def __init__(self):
+    def __init__(self, level=0):
+        self.level = level
+
+        self.base_class = 'object'
         self.functions = {}
         self.klass = None
+        self.module_body = []
         self.root_func = None
 
     def add_function(self, name, func):
@@ -36,11 +40,39 @@ class ParserState(object):
         """
         self.functions[name].body.append(value)
 
+    @property
+    def class_name(self):
+        return 'Template%s' % (self.level or '')
+
     def finalize(self):
         """
         Adds all functions to the class body.
         """
-        self.klass.body = list(self.functions.values())
+        self.klass.bases = [ast.Name(id=self.base_class, ctx=ast.Load())]
+        if self.base_class != 'object':
+            self.root_func = None
+            del self.functions['root']
+            self.klass.body.insert(0, ast.Pass())
+            # self.functions['root'].body = [
+            #     ast.Return(
+            #         value=build_call(
+            #             func=ast.Attribute(
+            #                 value=build_call(
+            #                     func=ast.Name(id='super', ctx=ast.Load()),
+            #                     args=[
+            #                         ast.Name(id=self.class_name, ctx=ast.Load()),
+            #                         ast.Name(id='self', ctx=ast.Load())
+            #                     ]
+            #                 ),
+            #                 attr='root', ctx=ast.Load()
+            #             ),
+            #             args=[
+            #                 ast.Name(id='context', ctx=ast.Load())
+            #             ]
+            #         )
+            #     )
+            # ]
+        self.klass.body.extend(list(self.functions.values()))
 
 
 def production(generator, *rules):
@@ -106,12 +138,12 @@ def build_class(state):
     """
     root_func = build_function('root')
     klass = ast.ClassDef(
-        name='Template',
-        bases=[ast.Name(id='object', ctx=ast.Load())],
+        name=state.class_name,
+        bases=[],
         keywords=[],
         starargs=None,
         kwargs=None,
-        body=[root_func],
+        body=[],
         decorator_list=[]
     )
     state.klass = klass
