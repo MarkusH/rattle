@@ -1,3 +1,5 @@
+import re
+
 from . import lexers
 
 
@@ -21,7 +23,7 @@ slg.add('CE', r'\s*#\}')
 #   * a end token (any of ``}}``, ``%}`` or ``#}``) (everything inside a tag
 #     except the tag name)
 #   * End of string
-slg.add('CONTENT', r'(?<!(\{[{%#])).*?(?=(\{[{%#])|(\s*[#%}]\})|$)')
+slg.add('CONTENT', r'(?<!(\{[{%#])).*?(?=(\{[{%#])|(\s*[#%}]\})|$)', re.DOTALL)
 
 slg.add('IF', r'\s*if\s+')
 slg.add('ENDIF', r'\s*endif\s+')

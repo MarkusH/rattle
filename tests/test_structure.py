@@ -249,7 +249,7 @@ class BlockTest(TemplateTestCase):
         with self.assertRaises(DuplicateBlockError) as cm:
             src = '{% block foo %}a{% block foo %}a{% endblock %}a{% endblock %}'
             tmpl = Template(src)
-            rendered = tmpl.render()
+            tmpl.render()
         self.assertEqual(cm.exception.name, 'foo')
 
 
@@ -258,7 +258,13 @@ class ExtendsTest(TemplateTestCase):
     def test_block(self):
         TESTS = (
             ('{% extends "tests/extends.tpl" %}', 'Some content Super block content More content'),
+            ('{% extends "tests/extends-multiline.tpl" %}', 'Some content\n\n    Super block content\n\nMore content'),
             ('{% extends "tests/extends.tpl" %}{% block superblock %}Other content{% endblock %}', 'Some content Other content More content'),
+            ('''{% extends "tests/extends-multiline.tpl" %}
+{% block superblock %}
+    Other content
+{% endblock %}''',
+             'Some content\n\n    Other content\n\nMore content'),
         )
         for src, expect in TESTS:
             self.assertRendered(src, expect)

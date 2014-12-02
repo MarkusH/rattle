@@ -15,7 +15,7 @@ setup(
     packages=find_packages(),
     long_description=readme,
     install_requires=[
-        'rply>=0.7.2',
+        'rply>=0.7.3',
     ],
     classifiers=[
         'Development Status :: 1 - Planning',
